@@ -1,0 +1,8 @@
+{
+  "name": "fallback-5xx",
+  "description": "TEST-0009 TC-5: harness arms /admin/inject/5xx twice within UnhealthyWindow; switcher transitions gemini_primary → gemini_unhealthy → grok_active.",
+  "frames": [
+    {"after_ms": 20, "type": "transcript", "role": "user",
+     "text": "what do you recommend?", "final": true}
+  ]
+}

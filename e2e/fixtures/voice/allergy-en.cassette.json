@@ -1,0 +1,14 @@
+{
+  "name": "allergy-en",
+  "description": "TEST-0012 TC-2: EN allergy filter — 'anything without peanuts?'",
+  "frames": [
+    {"after_ms": 40, "type": "transcript", "role": "user",
+     "text": "anything without peanuts?", "final": true},
+    {"after_ms": 60, "type": "function_call",
+     "name": "menu_search", "call_id": "fc-1",
+     "arguments": {"allergens": ["peanut"]}},
+    {"after_ms": 30, "type": "transcript", "role": "assistant",
+     "text": "Found 2 items without peanut: Green Curry and Tom Yum.",
+     "final": true}
+  ]
+}

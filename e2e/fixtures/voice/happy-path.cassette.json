@@ -1,0 +1,24 @@
+{
+  "name": "happy-path",
+  "description": "TEST-0010 TC-14 golden path: user says 'I want truffle pasta with no peanuts, table A12' → menu_search → cart_add → order_submit.",
+  "frames": [
+    {"after_ms": 50, "type": "transcript", "role": "user",
+     "text": "I want a truffle pasta with no peanuts, table A12", "final": true},
+    {"after_ms": 80, "type": "function_call",
+     "name": "menu_search", "call_id": "fc-1",
+     "arguments": {"query": "truffle pasta", "allergens": ["peanut"]}},
+    {"after_ms": 40, "type": "transcript", "role": "assistant",
+     "text": "Found Truffle Pasta. Adding one to your cart.", "final": false},
+    {"after_ms": 30, "type": "function_call",
+     "name": "cart_add", "call_id": "fc-2",
+     "arguments": {"item_id": "i-truffle", "qty": 1,
+                   "modifiers": {"pasta_type": "penne"}}},
+    {"after_ms": 50, "type": "function_call",
+     "name": "order_submit", "call_id": "fc-3",
+     "arguments": {"payment_method": "stub"}},
+    {"after_ms": 30, "type": "transcript", "role": "assistant",
+     "text": "Your order has been placed. Order number coming up.",
+     "final": true},
+    {"after_ms": 20, "type": "audio", "pcm": "AAAAAAAA", "final": true}
+  ]
+}

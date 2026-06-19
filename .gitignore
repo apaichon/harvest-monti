@@ -6,3 +6,8 @@ dist
 coverage
 .DS_Store
 *.log
+
+# build artefacts (TASK-0014 docker images / local Go binaries)
+/mock-gemini
+/monti-api
+e2e/golden/_actual/

@@ -1,0 +1,20 @@
+{
+  "name": "lang-switch-mid",
+  "description": "TEST-0012 TC-4..6: TH → 'speak English please' → EN → switch back.",
+  "frames": [
+    {"after_ms": 30, "type": "transcript", "role": "user",
+     "text": "มีโปรโมชั่นอะไรบ้าง", "final": true, "language": "th-TH"},
+    {"after_ms": 30, "type": "transcript", "role": "user",
+     "text": "speak English please", "final": true, "language": "en-US"},
+    {"after_ms": 40, "type": "function_call",
+     "name": "language_switch", "call_id": "fc-ls",
+     "arguments": {"bcp47": "en-US"}},
+    {"after_ms": 30, "type": "transcript", "role": "assistant",
+     "text": "Sure, switching to English.", "final": true, "language": "en-US"},
+    {"after_ms": 30, "type": "transcript", "role": "user",
+     "text": "what do you recommend?", "final": true, "language": "en-US"},
+    {"after_ms": 60, "type": "function_call",
+     "name": "menu_search", "call_id": "fc-rec",
+     "arguments": {"query": "recommendations"}}
+  ]
+}
