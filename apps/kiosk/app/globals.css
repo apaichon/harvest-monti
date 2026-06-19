@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-base: #0b1438;
+    --bg-surface: #142051;
+    --bg-surface-2: #1b2a66;
+    --accent-cyan: #00bfff;
+    --accent-cyan-soft: rgba(51, 204, 255, 0.667);
+    color-scheme: dark;
+  }
+  html,
+  body {
+    background-color: var(--bg-base);
+    color: #fff;
+    font-family: Inter, system-ui, sans-serif;
+    overscroll-behavior: none;
+  }
+  *:focus-visible {
+    outline: 3px solid var(--accent-cyan);
+    outline-offset: 4px;
+  }
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hidden {
+  scrollbar-width: none;
+}

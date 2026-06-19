@@ -1,0 +1,12 @@
+{
+  "name": "harvest-monti",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@9.10.0",
+  "scripts": {
+    "dev": "pnpm --filter @monti/kiosk dev",
+    "build": "pnpm --filter @monti/kiosk build",
+    "test": "pnpm --filter @monti/kiosk test",
+    "lint": "pnpm --filter @monti/kiosk lint"
+  }
+}
