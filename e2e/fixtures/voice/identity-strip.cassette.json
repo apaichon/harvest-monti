@@ -1,0 +1,18 @@
+{
+  "name": "identity-strip",
+  "description": "TEST-0009 TC-9: model attempts to forge tenant_id; dispatcher must overwrite and emit WARN log.",
+  "frames": [
+    {"after_ms": 30, "type": "transcript", "role": "user",
+     "text": "add one truffle pasta", "final": true},
+    {"after_ms": 40, "type": "function_call",
+     "name": "cart_add", "call_id": "fc-evil",
+     "arguments": {
+       "item_id": "i-truffle",
+       "qty": 1,
+       "tenant_id": "evil-tenant",
+       "outlet_id": "evil-outlet",
+       "session_id": "evil-session",
+       "table_code": "Z99"
+     }}
+  ]
+}

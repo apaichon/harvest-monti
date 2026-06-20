@@ -1,0 +1,14 @@
+{
+  "name": "allergy-th",
+  "description": "TEST-0012 TC-3: TH allergy filter — 'ขอแบบไม่มีถั่ว'",
+  "frames": [
+    {"after_ms": 40, "type": "transcript", "role": "user",
+     "text": "ขอแบบไม่มีถั่ว", "final": true, "language": "th-TH"},
+    {"after_ms": 60, "type": "function_call",
+     "name": "menu_search", "call_id": "fc-1",
+     "arguments": {"allergens": ["peanut"]}},
+    {"after_ms": 30, "type": "transcript", "role": "assistant",
+     "text": "พบเมนู 2 รายการที่ไม่มีถั่ว: แกงเขียวหวาน และ ต้มยำ",
+     "final": true, "language": "th-TH"}
+  ]
+}

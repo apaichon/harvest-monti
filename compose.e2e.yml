@@ -1,0 +1,156 @@
+## compose.e2e.yml — TASK-0014 end-to-end test stack
+##
+## Brings up every dependency the harvest-monti gateway needs in production,
+## plus a mock-gemini WebSocket server that replays deterministic Gemini Live
+## frame sequences from e2e/fixtures/. The kiosk Next.js dev server is
+## composed in so Playwright can exercise the UI against the same stack.
+##
+## DES-0009 §2 is the contract the mock implements verbatim — drift between
+## this mock and the real adapter (internal/voice/providers/gemini) breaks
+## TEST-0009. The mock-gemini binary at cmd/mock-gemini/main.go IS the
+## executable spec for that section.
+##
+## Usage:
+##   make e2e-up            # boot stack
+##   make e2e-fixtures      # run Go-based fixture suite
+##   make e2e-down          # tear down
+##   make e2e               # all of the above end-to-end
+##
+## When LIVE_VOICE=1 + GEMINI_API_KEY are set, the gateway is rewired to talk
+## to api.googleapis.com instead of mock-gemini and the live-smoke test runs.
+##
+## Health checks are configured for every service; the test runner blocks on
+## `docker compose ps --status=running` and per-service /healthz endpoints.
+
+name: monti-e2e
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: monti
+      POSTGRES_PASSWORD: monti_dev
+      POSTGRES_DB: monti_e2e
+    ports: ["5433:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U monti -d monti_e2e"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6380:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  nats:
+    image: nats:2-alpine
+    command: ["-js", "-m", "8222"]
+    ports: ["4223:4222", "8223:8222"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  minio:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: monti
+      MINIO_ROOT_PASSWORD: monti_dev_secret
+    ports: ["9100:9000", "9101:9001"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  minio-init:
+    ## Creates the three buckets + lifecycle rules per DES-0007 §4.
+    ##   monti-menu-images       — public-read, immutable cache, 31536000s
+    ##   monti-voice-sessions    — private, 30-day lifecycle expiration
+    ##   monti-order-receipts    — private, 7-year retention
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 monti monti_dev_secret &&
+        mc mb -p local/monti-menu-images || true &&
+        mc mb -p local/monti-voice-sessions || true &&
+        mc mb -p local/monti-order-receipts || true &&
+        mc anonymous set download local/monti-menu-images || true &&
+        mc ilm rule add --expire-days 30 local/monti-voice-sessions || true &&
+        mc ilm rule add --expire-days 2555 local/monti-order-receipts || true &&
+        echo 'bucket-init complete'
+      "
+
+  mock-gemini:
+    ## Deterministic Gemini Live WS mock. See cmd/mock-gemini/main.go.
+    build:
+      context: .
+      dockerfile: cmd/mock-gemini/Dockerfile
+    environment:
+      MOCK_GEMINI_ADDR: ":7070"
+      MOCK_GEMINI_FIXTURES: "/fixtures"
+    volumes:
+      - ./e2e/fixtures/voice:/fixtures:ro
+    ports: ["7070:7070"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7070/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  monti-gateway:
+    ## harvest-monti HTTP + WS gateway from cmd/monti-api/main.go.
+    build:
+      context: .
+      dockerfile: cmd/monti-api/Dockerfile
+    environment:
+      MONTI_HTTP_ADDR: ":8081"
+      MONTI_DB_URL: "postgres://monti:monti_dev@postgres:5432/monti_e2e?sslmode=disable"
+      MONTI_REDIS_URL: "redis://redis:6379/0"
+      MONTI_NATS_URL: "nats://nats:4222"
+      MONTI_MINIO_ENDPOINT: "minio:9000"
+      MONTI_MINIO_ACCESS_KEY: "monti"
+      MONTI_MINIO_SECRET_KEY: "monti_dev_secret"
+      MONTI_VOICE_GEMINI_ENDPOINT: "ws://mock-gemini:7070/gemini"
+      MONTI_QR_KEY: "dev-only-key-do-not-use"
+    depends_on:
+      postgres:    {condition: service_healthy}
+      redis:       {condition: service_healthy}
+      nats:        {condition: service_healthy}
+      minio:       {condition: service_healthy}
+      mock-gemini: {condition: service_healthy}
+    ports: ["8081:8081"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+
+  kiosk:
+    ## Next.js dev server (TASK-0011). Points at the gateway service.
+    image: node:22-alpine
+    working_dir: /app
+    command: ["sh", "-c", "corepack enable && pnpm install --frozen-lockfile && pnpm --filter @monti/kiosk dev"]
+    environment:
+      NEXT_PUBLIC_API_BASE: "http://monti-gateway:8081"
+      NEXT_PUBLIC_VOICE_WS:  "ws://monti-gateway:8081/api/v1/voice/sessions"
+    volumes:
+      - ./:/app
+    depends_on:
+      monti-gateway: {condition: service_healthy}
+    ports: ["3000:3000"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
+      interval: 4s
+      timeout: 4s
+      retries: 30

@@ -1,0 +1,72 @@
+# Nightly live-Gemini smoke — TASK-0014 §3 / DEP-0003.
+#
+# Runs once per night against the real Gemini Live endpoint. Uses
+# GitHub Actions secrets:
+#
+#   GEMINI_API_KEY     — real Google AI Studio key for QA tenant
+#   DEEPGRAM_API_KEY   — Grok fallback STT
+#   GROK_API_KEY       — Grok LLM
+#   ELEVENLABS_API_KEY — Grok TTS
+#
+# Soft-fail: if Gemini returns a quota error the test marks itself skipped
+# rather than failing red (see e2e/live_smoke_test.go) so the pipeline is
+# observable without becoming an alert source on quota days.
+#
+# Evidence is uploaded as a workflow artifact (TEST-0009 case-14).
+name: nightly-live-voice
+
+on:
+  schedule:
+    - cron: "0 18 * * *"   # 01:00 ICT (Asia/Bangkok)
+  workflow_dispatch:
+
+jobs:
+  live-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Boot stack
+        env:
+          # When LIVE_VOICE is set the gateway points at
+          # generativelanguage.googleapis.com instead of mock-gemini.
+          LIVE_VOICE: "1"
+          GEMINI_API_KEY:     ${{ secrets.GEMINI_API_KEY }}
+          DEEPGRAM_API_KEY:   ${{ secrets.DEEPGRAM_API_KEY }}
+          GROK_API_KEY:       ${{ secrets.GROK_API_KEY }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        run: |
+          docker compose -f compose.e2e.yml up -d --build \
+            postgres redis nats minio minio-init monti-gateway
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:8081/healthz >/dev/null; then
+              echo "gateway up"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Live-Gemini smoke
+        env:
+          LIVE_VOICE:        "1"
+          MONTI_E2E_STACK:   "1"
+          GEMINI_API_KEY:    ${{ secrets.GEMINI_API_KEY }}
+          MONTI_VOICE_GATEWAY_URL: "ws://localhost:8081/api/v1/voice/sessions"
+        run: |
+          go test ./e2e/... -run TestLiveGeminiSmoke -count=1 -v
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-smoke-evidence-${{ github.run_id }}
+          path: docs/harvest-monti/sdlc/05-tests/evidence/TEST-0009/case-14/
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f compose.e2e.yml down -v --remove-orphans
